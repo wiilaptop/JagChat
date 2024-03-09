@@ -15,6 +15,7 @@ serverVer = str(1.0)
 client_sockets=set()
 totalUsersInRoom = []
 
+#Opening the socket for clients to connect.
 sock = socket.socket()
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind((host,port))
@@ -23,13 +24,15 @@ print (f"We are listening for anything on {host} & {port}...")
 
 def MessageBroadcast(usersocket, Name):
     while True:
-        
-        message = usersocket.recv(1024).decode()
+        try:
+            message = usersocket.recv(1024).decode()
+        except ConnectionResetError as e:
+            print (f"[!] {e} found! Handling...")
 
         #If a message is empty (Only possible if someone disconnects)
         #Remove that socket from the list, and continue the iteration.
         if message == "":
-            print (f"[DISCONNECT] {Name} left the server!")
+            print (f"[* - DISCONNECT] {Name} left the server!")
             client_sockets.remove(usersocket)
             totalUsersInRoom.remove(Name)
             continue
@@ -37,13 +40,15 @@ def MessageBroadcast(usersocket, Name):
         #Command Processing if the first character of the message begins with /
         try:
             if message[0] == "/":
-                print (f"[SERVER] COMMAND RAN: {message}")
+                print (f"[*] {Name} RAN COMMAND: {message}")
                 if message == "/list":
-                    totalUsers = ""
+                    totalUsers = "Users currently connected: "
                     for i in totalUsersInRoom: 
                         totalUsers += f"{i} | "
                     usersocket.send(totalUsers.encode())
-                continue
+                    continue
+                if message == "/set":
+                    print (f"This is the set: {client_sockets}")
         
         #Catching IndexError if a message is sent with no content.
         #The Clients should catch any empty messages, and the server inteprets empty messages
@@ -51,7 +56,7 @@ def MessageBroadcast(usersocket, Name):
         except IndexError:
             pass
 
-        print (f"[SERVER] MESSAGE SENT: {message}")
+        print (f"[*] MESSAGE SENT: {message}")
 
         #Replicating the message sent from a client to each connected client.
         #note: USERSOCKET - each individual user. CLIENT_SOCKETS - everyone connected.
@@ -64,26 +69,29 @@ def MessageBroadcast(usersocket, Name):
             pass
 
 while True:
+    #Accepting the socket connection
     usersocket, client_address = sock.accept()
-    print (f"DEBUG: {usersocket} DEBUG2: {client_address}")
 
+    #The client will send the name of the user & its version to the server.
     clientInfo = usersocket.recv(1024).decode()
     Name, ClientVer = clientInfo.split(",")
-    print (f"\nConnection from {usersocket} - Name: {Name}, Client Ver - {ClientVer}\n")
-    print (f"{type(ClientVer)}, {type(serverVer)}")
-    print (f"Client Version: {ClientVer}, Server Version: {serverVer}")
+    print (f"\n[*] Connection from {usersocket} - Name: {Name}, Client Ver - {ClientVer}\n")
 
+    #If the client's version does NOT match the server's version, send that client a disconnect message
+    #and do NOT add them to the client_sockets - the set of approved users to recieve messages.
     if ClientVer != serverVer:
         mismatchVer = f"[!] This client does not match the version of the server."
         usersocket.send(mismatchVer.encode())
         continue
     else:
-        connectionGood = f"[*] Connection Successful!"
+        connectionGood = f"[✓] Connection Successful!"
         usersocket.send(connectionGood.encode())
 
+    #If a client passes the version check, add their name and connection to the set.
     client_sockets.add(usersocket)
     totalUsersInRoom.append(Name)
 
+    #Start the daemon for processing incoming messages
     t = Thread(target=MessageBroadcast, args=(usersocket, Name, ))
     t.daemon = True
     t.start()

@@ -17,7 +17,7 @@ host = str("0.0.0.0")
 port = int("123")
 
 sock = socket.socket()
-print(f"Connecting to {host}:{port}...")
+print(f"[*] Connecting to {host}:{port}...")
 
 sock.connect((host,port))
 
