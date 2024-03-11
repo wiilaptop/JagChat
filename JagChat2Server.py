@@ -22,10 +22,10 @@ sock.bind((host,port))
 sock.listen(5)
 print (f"We are listening for anything on {host} & {port}...")
 
-def MessageBroadcast(usersocket, Name):
+def MessageBroadcast(userclient, Name):
     while True:
         try:
-            message = usersocket.recv(1024).decode()
+            message = userclient.recv(1024).decode()
         except ConnectionResetError as e:
             print (f"[!] {e} found! Handling...")
 
@@ -33,7 +33,10 @@ def MessageBroadcast(usersocket, Name):
         #Remove that socket from the list, and continue the iteration.
         if message == "":
             print (f"[* - DISCONNECT] {Name} left the server!")
-            client_sockets.remove(usersocket)
+            try:
+                client_sockets.remove(usersocket)
+            except:
+                print (f"[!] UnboundLocalError. Handling...")
             totalUsersInRoom.remove(Name)
             continue
 
@@ -45,7 +48,7 @@ def MessageBroadcast(usersocket, Name):
                     totalUsers = "Users currently connected: "
                     for i in totalUsersInRoom: 
                         totalUsers += f"{i} | "
-                    usersocket.send(totalUsers.encode())
+                    userclient.send(totalUsers.encode())
                     continue
                 if message == "/set":
                     print (f"This is the set: {client_sockets}")
